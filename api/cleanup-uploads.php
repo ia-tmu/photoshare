@@ -37,6 +37,7 @@ foreach (new DirectoryIterator($uploadDir) as $entry) {
         if (is_file($thumbnailPath)) {
             @unlink($thumbnailPath);
         }
+        delete_photo_metadata($filename);
         $deleted += 1;
     } else {
         $failed += 1;

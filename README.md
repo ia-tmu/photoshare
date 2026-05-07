@@ -6,7 +6,8 @@
 - Webサーバ（Apache / Nginx）または PHP 組み込みサーバ
 - PHP拡張:
 	- fileinfo（必須）
-	- gd（推奨、サムネイル生成に使用）
+	- gd または Imagick（必須、アップロード画像のメタデータ削除に使用）
+	- exif（推奨、撮影日時の取得に使用）
 - モダンブラウザ（Chrome / Safari / Edge の最新版）
 
 ## 使い方
@@ -47,6 +48,8 @@ define('UPLOAD_SUCCESS_MESSAGE', '写真を保存しました。');
 `UPLOAD_DIR` は絶対パス、またはプロジェクトルートからの相対パスで指定できます。Web公開ディレクトリ外に置いた場合も、ギャラリーは `api/image.php` 経由で表示します。
 
 アップロード時に `UPLOAD_DIR/thumbnails` へ軽量サムネイルを生成します。ギャラリー一覧はサムネイルを使い、画像クリック時の拡大表示のみ original を読み込みます。GD が未対応の画像形式では original にフォールバックします。
+
+アップロード画像は保存前に再エンコードし、EXIF/GPSなどの画像内メタデータを削除します。撮影日時を取得できた場合のみ、ギャラリーの並び替え用データとして `UPLOAD_DIR/.metadata` に保存します。HEIC/HEIFなど、サーバ環境でメタデータ削除を保証できない形式は保存されません。
 
 `GALLERY_POLL_INTERVAL_SECONDS` は `gallery.html` が新規画像を確認する間隔です。新しい画像が見つかると、既存グリッドへふわっと追加表示されます。
 

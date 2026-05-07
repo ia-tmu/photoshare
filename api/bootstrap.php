@@ -75,6 +75,11 @@ function thumbnail_dir()
     return upload_dir() . '/thumbnails';
 }
 
+function metadata_dir()
+{
+    return upload_dir() . '/.metadata';
+}
+
 function allowed_image_extensions()
 {
     return array_map(function ($extension) {
@@ -165,6 +170,11 @@ function thumbnail_path($originalName)
     return thumbnail_dir() . '/' . thumbnail_name($originalName);
 }
 
+function metadata_path($originalName)
+{
+    return metadata_dir() . '/' . thumbnail_name($originalName) . '.json';
+}
+
 function ensure_thumbnail_dir()
 {
     $thumbnailDir = thumbnail_dir();
@@ -174,6 +184,26 @@ function ensure_thumbnail_dir()
     }
 
     return is_dir($thumbnailDir) && is_writable($thumbnailDir);
+}
+
+function ensure_metadata_dir()
+{
+    $metadataDir = metadata_dir();
+
+    if (!is_dir($metadataDir)) {
+        @mkdir($metadataDir, 0755, true);
+    }
+
+    if (!is_dir($metadataDir) || !is_writable($metadataDir)) {
+        return false;
+    }
+
+    $htaccessPath = $metadataDir . '/.htaccess';
+    if (!is_file($htaccessPath)) {
+        @file_put_contents($htaccessPath, "Require all denied\n");
+    }
+
+    return true;
 }
 
 function image_resource_from_path($path, $mime)
@@ -189,6 +219,231 @@ function image_resource_from_path($path, $mime)
             return function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false;
         default:
             return false;
+    }
+}
+
+function normalized_exif_datetime($value)
+{
+    $value = trim((string) $value);
+    if ($value === '' || strpos($value, '0000:00:00') === 0) {
+        return null;
+    }
+
+    if (!preg_match('/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/', $value, $matches)) {
+        return null;
+    }
+
+    $timezone = new DateTimeZone(date_default_timezone_get());
+    $date = DateTimeImmutable::createFromFormat(
+        '!Y-m-d H:i:s',
+        $matches[1] . '-' . $matches[2] . '-' . $matches[3] . ' ' . $matches[4] . ':' . $matches[5] . ':' . $matches[6],
+        $timezone
+    );
+
+    return $date === false ? null : $date->getTimestamp();
+}
+
+function extract_capture_timestamp($path)
+{
+    if (!function_exists('exif_read_data') || !is_file($path)) {
+        return null;
+    }
+
+    $exif = @exif_read_data($path);
+    if (!is_array($exif)) {
+        return null;
+    }
+
+    foreach (['DateTimeOriginal', 'DateTimeDigitized', 'DateTime'] as $key) {
+        if (!isset($exif[$key])) {
+            continue;
+        }
+
+        $timestamp = normalized_exif_datetime($exif[$key]);
+        if ($timestamp !== null) {
+            return $timestamp;
+        }
+    }
+
+    return null;
+}
+
+function exif_orientation($path)
+{
+    if (!function_exists('exif_read_data') || !is_file($path)) {
+        return 1;
+    }
+
+    $exif = @exif_read_data($path);
+    if (!is_array($exif) || !isset($exif['Orientation'])) {
+        return 1;
+    }
+
+    return max(1, min(8, (int) $exif['Orientation']));
+}
+
+function image_apply_orientation($image, $orientation)
+{
+    switch ($orientation) {
+        case 2:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            return $image;
+        case 3:
+            $rotated = imagerotate($image, 180, 0);
+            return $rotated === false ? $image : $rotated;
+        case 4:
+            imageflip($image, IMG_FLIP_VERTICAL);
+            return $image;
+        case 5:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            $rotated = imagerotate($image, 270, 0);
+            return $rotated === false ? $image : $rotated;
+        case 6:
+            $rotated = imagerotate($image, 270, 0);
+            return $rotated === false ? $image : $rotated;
+        case 7:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            $rotated = imagerotate($image, 90, 0);
+            return $rotated === false ? $image : $rotated;
+        case 8:
+            $rotated = imagerotate($image, 90, 0);
+            return $rotated === false ? $image : $rotated;
+        default:
+            return $image;
+    }
+}
+
+function sanitize_image_with_imagick($sourcePath, $targetPath)
+{
+    if (!class_exists('Imagick')) {
+        return false;
+    }
+
+    try {
+        $image = new Imagick($sourcePath);
+        if (method_exists($image, 'autoOrient')) {
+            $image->autoOrient();
+        } elseif (method_exists($image, 'autoOrientImage')) {
+            $image->autoOrientImage();
+        }
+
+        foreach ($image as $frame) {
+            $frame->stripImage();
+            if (method_exists($frame, 'setImageOrientation')) {
+                $frame->setImageOrientation(Imagick::ORIENTATION_TOPLEFT);
+            }
+        }
+
+        if (method_exists($image, 'setImageCompressionQuality')) {
+            $image->setImageCompressionQuality(92);
+        }
+
+        $saved = $image->writeImages($targetPath, true);
+        $image->clear();
+        $image->destroy();
+
+        return $saved && is_file($targetPath) && filesize($targetPath) > 0;
+    } catch (Exception $error) {
+        return false;
+    }
+}
+
+function sanitize_image_with_gd($sourcePath, $targetPath, $originalName)
+{
+    $mime = image_mime_type($sourcePath, $originalName);
+    $sourceImage = image_resource_from_path($sourcePath, $mime);
+    if ($sourceImage === false) {
+        return false;
+    }
+
+    if ($mime === 'image/jpeg') {
+        $orientedImage = image_apply_orientation($sourceImage, exif_orientation($sourcePath));
+        if ($orientedImage !== $sourceImage) {
+            imagedestroy($sourceImage);
+            $sourceImage = $orientedImage;
+        }
+    }
+
+    $saved = false;
+    switch ($mime) {
+        case 'image/jpeg':
+            $saved = imagejpeg($sourceImage, $targetPath, 92);
+            break;
+        case 'image/png':
+            imagealphablending($sourceImage, false);
+            imagesavealpha($sourceImage, true);
+            $saved = imagepng($sourceImage, $targetPath, 6);
+            break;
+        case 'image/gif':
+            $saved = imagegif($sourceImage, $targetPath);
+            break;
+        case 'image/webp':
+            $saved = function_exists('imagewebp') ? imagewebp($sourceImage, $targetPath, 88) : false;
+            break;
+    }
+
+    imagedestroy($sourceImage);
+
+    return $saved && is_file($targetPath) && filesize($targetPath) > 0;
+}
+
+function sanitize_uploaded_image($sourcePath, $targetPath, $originalName)
+{
+    @unlink($targetPath);
+
+    if (sanitize_image_with_imagick($sourcePath, $targetPath)) {
+        return true;
+    }
+
+    if (sanitize_image_with_gd($sourcePath, $targetPath, $originalName)) {
+        return true;
+    }
+
+    @unlink($targetPath);
+    return false;
+}
+
+function write_photo_metadata($originalName, array $metadata)
+{
+    if (!is_safe_stored_name($originalName) || !ensure_metadata_dir()) {
+        return false;
+    }
+
+    $payload = [
+        'capturedAt' => isset($metadata['capturedAt']) ? $metadata['capturedAt'] : null,
+        'capturedTimestamp' => isset($metadata['capturedTimestamp']) ? $metadata['capturedTimestamp'] : null,
+    ];
+
+    return @file_put_contents(
+        metadata_path($originalName),
+        json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+    ) !== false;
+}
+
+function read_photo_metadata($originalName)
+{
+    if (!is_safe_stored_name($originalName)) {
+        return [];
+    }
+
+    $path = metadata_path($originalName);
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $metadata = json_decode((string) @file_get_contents($path), true);
+    return is_array($metadata) ? $metadata : [];
+}
+
+function delete_photo_metadata($originalName)
+{
+    if (!is_safe_stored_name($originalName)) {
+        return;
+    }
+
+    $path = metadata_path($originalName);
+    if (is_file($path)) {
+        @unlink($path);
     }
 }
 
@@ -303,6 +558,13 @@ function photo_entries()
         }
 
         $timestamp = $entry->getMTime();
+        $metadata = read_photo_metadata($name);
+        $capturedTimestamp = isset($metadata['capturedTimestamp']) ? (int) $metadata['capturedTimestamp'] : null;
+        if ($capturedTimestamp !== null && $capturedTimestamp <= 0) {
+            $capturedTimestamp = null;
+        }
+        $capturedAt = isset($metadata['capturedAt']) && is_string($metadata['capturedAt']) ? $metadata['capturedAt'] : null;
+
         $entries[] = [
             'id' => $name,
             'name' => $name,
@@ -311,6 +573,8 @@ function photo_entries()
             'thumbnailUrl' => 'api/image.php?name=' . rawurlencode($name) . '&variant=thumbnail',
             'uploadedAt' => format_iso_time($timestamp),
             'timestamp' => $timestamp,
+            'capturedAt' => $capturedAt,
+            'capturedTimestamp' => $capturedTimestamp,
             'size' => $entry->getSize(),
         ];
     }

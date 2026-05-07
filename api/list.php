@@ -18,22 +18,52 @@ $pollIntervalSeconds = max(2, config_int('GALLERY_POLL_INTERVAL_SECONDS', 10));
 
 $photos = photo_entries();
 
+function compare_timestamps($leftTimestamp, $rightTimestamp, $direction)
+{
+    if ($leftTimestamp === $rightTimestamp) {
+        return 0;
+    }
+
+    if ($direction === 'asc') {
+        return $leftTimestamp < $rightTimestamp ? -1 : 1;
+    }
+
+    return $rightTimestamp < $leftTimestamp ? -1 : 1;
+}
+
+function compare_capture_timestamps(array $left, array $right, $direction)
+{
+    $leftCaptured = isset($left['capturedTimestamp']) ? (int) $left['capturedTimestamp'] : 0;
+    $rightCaptured = isset($right['capturedTimestamp']) ? (int) $right['capturedTimestamp'] : 0;
+
+    if ($leftCaptured > 0 && $rightCaptured > 0) {
+        $capturedCompare = compare_timestamps($leftCaptured, $rightCaptured, $direction);
+        if ($capturedCompare !== 0) {
+            return $capturedCompare;
+        }
+    } elseif ($leftCaptured > 0) {
+        return -1;
+    } elseif ($rightCaptured > 0) {
+        return 1;
+    }
+
+    return compare_timestamps($left['timestamp'], $right['timestamp'], $direction);
+}
+
 usort($photos, function (array $left, array $right) use ($sort) {
     switch ($sort) {
         case 'oldest':
-            if ($left['timestamp'] === $right['timestamp']) {
-                return 0;
-            }
-            return $left['timestamp'] < $right['timestamp'] ? -1 : 1;
+            return compare_timestamps($left['timestamp'], $right['timestamp'], 'asc');
+        case 'captured_newest':
+            return compare_capture_timestamps($left, $right, 'desc');
+        case 'captured_oldest':
+            return compare_capture_timestamps($left, $right, 'asc');
         case 'name_asc':
             return strnatcasecmp($left['name'], $right['name']);
         case 'name_desc':
             return strnatcasecmp($right['name'], $left['name']);
         default:
-            if ($right['timestamp'] === $left['timestamp']) {
-                return 0;
-            }
-            return $right['timestamp'] < $left['timestamp'] ? -1 : 1;
+            return compare_timestamps($left['timestamp'], $right['timestamp'], 'desc');
     }
 });
 

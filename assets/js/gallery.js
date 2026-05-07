@@ -27,6 +27,12 @@ const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
   minute: "2-digit",
 });
 
+const formatPhotoDate = (photo) => {
+  const dateValue = photo.capturedAt || photo.uploadedAt;
+  const label = photo.capturedAt ? "撮影日時" : "共有日時";
+  return `${label}: ${dateFormatter.format(new Date(dateValue))}`;
+};
+
 const createPhotoLightbox = () => {
   let dialog = document.querySelector("#photo-lightbox");
 
@@ -99,7 +105,7 @@ const openPhotoLightbox = (photo) => {
   lightbox.dialog.classList.remove("is-open", "is-closing");
   lightbox.image.src = photo.originalUrl || photo.url;
   lightbox.image.alt = photo.name;
-  lightbox.caption.textContent = dateFormatter.format(new Date(photo.uploadedAt));
+  lightbox.caption.textContent = formatPhotoDate(photo);
   lightbox.dialog.showModal();
   window.requestAnimationFrame(() => {
     lightbox.dialog.classList.add("is-open");
@@ -153,16 +159,33 @@ const updateGalleryPeek = (photos) => {
 
 const comparePhotos = (left, right, sort = currentSort) => {
   if (sort === "oldest") return left.timestamp - right.timestamp;
+  if (sort === "captured_newest") return compareCapturedPhotos(left, right, "desc");
+  if (sort === "captured_oldest") return compareCapturedPhotos(left, right, "asc");
   if (sort === "name_asc") return left.name.localeCompare(right.name, "ja", { numeric: true });
   if (sort === "name_desc") return right.name.localeCompare(left.name, "ja", { numeric: true });
 
   return right.timestamp - left.timestamp;
 };
 
+const compareCapturedPhotos = (left, right, direction) => {
+  const leftCaptured = Number(left.capturedTimestamp || 0);
+  const rightCaptured = Number(right.capturedTimestamp || 0);
+
+  if (leftCaptured > 0 && rightCaptured > 0) {
+    return direction === "asc" ? leftCaptured - rightCaptured : rightCaptured - leftCaptured;
+  }
+
+  if (leftCaptured > 0) return -1;
+  if (rightCaptured > 0) return 1;
+
+  return direction === "asc" ? left.timestamp - right.timestamp : right.timestamp - left.timestamp;
+};
+
 const photoFromItem = (item) => ({
   id: item.dataset.id,
   name: item.dataset.name,
   timestamp: Number(item.dataset.timestamp || 0),
+  capturedTimestamp: Number(item.dataset.capturedTimestamp || 0),
 });
 
 const createPhotoItem = (photo, { isNew = false } = {}) => {
@@ -171,6 +194,7 @@ const createPhotoItem = (photo, { isNew = false } = {}) => {
   item.dataset.id = photo.id;
   item.dataset.name = photo.name;
   item.dataset.timestamp = String(photo.timestamp || 0);
+  item.dataset.capturedTimestamp = String(photo.capturedTimestamp || 0);
 
   const frame = document.createElement("div");
   frame.className = "photo-frame";
@@ -203,7 +227,7 @@ const createPhotoItem = (photo, { isNew = false } = {}) => {
   zoomButton.append(frame);
 
   const caption = document.createElement("figcaption");
-  caption.textContent = dateFormatter.format(new Date(photo.uploadedAt));
+  caption.textContent = formatPhotoDate(photo);
 
   item.append(zoomButton, caption);
   return item;

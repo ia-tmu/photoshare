@@ -78,21 +78,30 @@ function save_uploads(array $uploads)
             json_response(415, ['ok' => false, 'error' => '画像ファイルを選択してください。']);
         }
 
+        $capturedTimestamp = extract_capture_timestamp($upload['tmp_name']);
         $storedName = safe_public_filename($upload['name']);
         $targetPath = $uploadDir . '/' . $storedName;
 
-        if (!move_uploaded_file($upload['tmp_name'], $targetPath)) {
-            json_response(500, ['ok' => false, 'error' => '画像を保存できませんでした。']);
+        if (!sanitize_uploaded_image($upload['tmp_name'], $targetPath, $upload['name'])) {
+            json_response(415, ['ok' => false, 'error' => 'メタデータを削除できない画像形式です。JPEG、PNG、GIF、WebPの画像を選択してください。']);
         }
 
+        write_photo_metadata($storedName, [
+            'capturedAt' => $capturedTimestamp === null ? null : format_iso_time($capturedTimestamp),
+            'capturedTimestamp' => $capturedTimestamp,
+        ]);
+
         $hasThumbnail = ensure_thumbnail_for($storedName);
+        $storedSize = is_file($targetPath) ? filesize($targetPath) : 0;
 
         $saved[] = [
             'name' => $storedName,
             'url' => 'api/image.php?name=' . rawurlencode($storedName) . '&variant=original',
             'originalUrl' => 'api/image.php?name=' . rawurlencode($storedName) . '&variant=original',
             'thumbnailUrl' => 'api/image.php?name=' . rawurlencode($storedName) . '&variant=' . ($hasThumbnail ? 'thumbnail' : 'original'),
-            'size' => $upload['size'],
+            'capturedAt' => $capturedTimestamp === null ? null : format_iso_time($capturedTimestamp),
+            'capturedTimestamp' => $capturedTimestamp,
+            'size' => $storedSize,
         ];
     }
 
