@@ -1,0 +1,8 @@
+api/config.local.php
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+.vscode/
+node_modules/
+.DS_Store
+upload*.txt

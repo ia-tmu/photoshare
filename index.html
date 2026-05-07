@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ia20th photo sharing</title>
+  <meta name="description" content="イベント写真をすばやく共有するためのシンプルなアップロードページです。" />
+  <meta property="og:title" content="写真共有" />
+  <meta property="og:description" content="スマホから写真を選ぶだけで、会場スクリーン用ギャラリーへ共有できます。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="assets/images/ogp.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+
+<body>
+  <main>
+    <section class="upload-shell">
+      <section class="upload-composer" aria-label="写真共有">
+        <header class="upload-header">
+          <img class="site-logo" src="assets/images/logo.svg" alt="" />
+          <p>インダスな思い出画像をイベント期間中にみんなでシェアしよう。</p>
+        </header>
+
+        <div class="upload-stage">
+          <button id="upload-button" class="upload-button" type="button" aria-label="写真を選択してアップロード">
+            <span class="upload-progress" aria-hidden="true"></span>
+            <svg class="upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 16V4" />
+              <path d="m7 9 5-5 5 5" />
+              <path d="M5 20h14" />
+            </svg>
+            <span class="upload-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M6.5 7.5 8.2 5h7.6l1.7 2.5H20a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5a2 2 0 0 1 2-2h2.5Z" />
+                <circle cx="12" cy="13.5" r="3.2" />
+              </svg>
+            </span>
+          </button>
+
+          <input id="photo-input" name="photos[]" type="file" accept="image/*" multiple />
+        </div>
+      </section>
+      <button id="gallery-scroll-button" class="scroll-cue" type="button" aria-label="写真ギャラリーへスクロール">
+        <span class="scroll-cue-photos">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <svg viewBox="0 0 24 24">
+          <path d="M12 5v14" />
+          <path d="m6 13 6 6 6-6" />
+        </svg>
+      </button>
+      <button id="gallery-peek" class="gallery-peek" type="button" aria-label="写真ギャラリーへスクロール" hidden></button>
+    </section>
+
+    <section id="gallery-section" class="gallery-shell">
+      <header class="gallery-header">
+        <div>
+          <p class="eyebrow">Shared Photos</p>
+          <h1>写真ギャラリー</h1>
+        </div>
+
+        <label class="sort-control" for="sort-select">
+          <span>並び順</span>
+          <select id="sort-select" name="sort">
+            <option value="newest" selected>新しい順</option>
+            <option value="oldest">古い順</option>
+            <option value="name_asc">ファイル名 A-Z</option>
+            <option value="name_desc">ファイル名 Z-A</option>
+          </select>
+        </label>
+      </header>
+
+      <p id="gallery-status" class="gallery-status" role="status" aria-live="polite">読み込み中です。</p>
+      <section id="photo-grid" class="photo-grid" aria-label="共有写真一覧"></section>
+      <div id="gallery-sentinel" class="gallery-sentinel" aria-hidden="true">
+        <span></span>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="preview-dialog" class="preview-dialog" aria-labelledby="preview-title">
+    <section id="preview-panel" class="preview-panel" aria-labelledby="preview-title" hidden>
+      <div class="preview-header">
+        <div>
+          <h2 id="preview-title">この写真を送信しますか？</h2>
+          <p id="preview-count">0枚選択中</p>
+        </div>
+        <button id="clear-button" class="text-button" type="button">選び直す</button>
+      </div>
+
+      <ul id="preview-list" class="preview-list" aria-label="送信前の写真プレビュー"></ul>
+
+      <div id="upload-progress-bar" class="upload-progress-bar" role="progressbar" aria-label="アップロード進捗"
+        aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+        <span></span>
+      </div>
+
+      <div class="preview-actions">
+        <button id="select-more-button" class="secondary-button" type="button">写真を追加</button>
+        <button id="send-button" class="primary-button" type="button">送信する</button>
+      </div>
+    </section>
+  </dialog>
+
+  <script src="assets/js/app.js" type="module"></script>
+  <script src="assets/js/gallery.js" type="module"></script>
+</body>
+
+</html>
