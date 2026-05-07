@@ -1,78 +1,88 @@
 # 写真共有
-スマホから写真を選ぶだけでサーバ上のフォルダへ保存し、会場スクリーンや大型プロジェクタで即時閲覧できるシンプルな写真共有システムです。
+
+スマホから写真を選ぶだけでアップロードでき、同じページ内のギャラリーで共有写真を閲覧できるシンプルな写真共有システムです。
 
 ## 動作環境
-- PHP 8.1 以上（推奨: 8.2 以上）
-- Webサーバ（Apache / Nginx）または PHP 組み込みサーバ
+
+- PHP 8.1 以上
+- Webサーバ、または PHP 組み込みサーバ
 - PHP拡張:
-	- fileinfo（必須）
-	- gd または Imagick（必須、アップロード画像のメタデータ削除に使用）
-	- exif（推奨、撮影日時の取得に使用）
-- モダンブラウザ（Chrome / Safari / Edge の最新版）
+  - fileinfo
+  - gd または Imagick
+  - exif（撮影日時ソートを使う場合）
+- モダンブラウザ
 
-## 使い方
+## Getting Started
 
-アップロード画面:
-
-```text
-/
-```
-
-ギャラリー画面:
-
-```text
-/gallery.html
-```
-
-## 設定
-
-調整が必要な値はプロジェクト直下の `config.php` に集約しています。`config.php` は管理パスワードなどの秘密情報を含むためGit管理外です。初回セットアップ時はサンプルをコピーして作成してください。
+1. 設定ファイルを作成します。
 
 ```bash
 cp config.example.php config.php
 ```
 
+2. `config.php` を編集します。最低限、管理モードを使う場合は `ADMIN_PASSWORD` を設定してください。
+
 ```php
-define('UPLOAD_DIR', __DIR__ . '/uploads');
-define('APP_TIMEZONE', 'Asia/Tokyo');
-define('MAX_IMAGE_SIZE', 25 * 1024 * 1024);
-define('MAX_UPLOAD_COUNT', 20);
-define('ALLOWED_IMAGE_EXTENSIONS', 'jpg,jpeg,png,gif,webp,heic,heif');
-define('THUMBNAIL_MAX_WIDTH', 640);
-define('THUMBNAIL_MAX_HEIGHT', 640);
-define('THUMBNAIL_JPEG_QUALITY', 72);
-define('GALLERY_DEFAULT_SORT', 'newest');
-define('GALLERY_DEFAULT_LIMIT', 48);
-define('GALLERY_MAX_LIMIT', 120);
-define('GALLERY_POLL_INTERVAL_SECONDS', 10);
-define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: '');
-define('UPLOAD_RETENTION_SECONDS', 0);
-define('UPLOAD_SUCCESS_MESSAGE', '写真を保存しました。');
+define('ADMIN_PASSWORD', 'your-admin-password');
 ```
 
-`UPLOAD_DIR` は絶対パス、またはプロジェクトルートからの相対パスで指定できます。Web公開ディレクトリ外に置いた場合も、ギャラリーは `api/image.php` 経由で表示します。
-
-アップロード時に `UPLOAD_DIR/thumbnails` へ軽量サムネイルを生成します。ギャラリー一覧はサムネイルを使い、画像クリック時の拡大表示のみ original を読み込みます。GD が未対応の画像形式では original にフォールバックします。
-
-アップロード画像は保存前に再エンコードし、EXIF/GPSなどの画像内メタデータを削除します。撮影日時を取得できた場合のみ、ギャラリーの並び替え用データとして `UPLOAD_DIR/.metadata` に保存します。HEIC/HEIFなど、サーバ環境でメタデータ削除を保証できない形式は保存されません。
-
-`GALLERY_POLL_INTERVAL_SECONDS` は `gallery.html` が新規画像を確認する間隔です。新しい画像が見つかると、既存グリッドへふわっと追加表示されます。
-
-`ADMIN_PASSWORD` に空ではない値を設定すると、`/gallery.html?admin=1` または `/?admin=1` で管理モードを使えます。管理モードでは写真ごとの削除と、アップロード済み写真の全削除ができます。
-
-## ローカル起動
-
-```bash
-php -S 127.0.0.1:8000
-```
-
-ブラウザで `http://127.0.0.1:8000/` を開きます。
-
-## アップロード先の権限
-
-デプロイ先で「画像保存先を作成できません。」または「画像保存先に書き込めません。」と出る場合は、PHP実行ユーザが `UPLOAD_DIR` に書き込めるようにしてください。
+3. アップロード先ディレクトリを用意します。
 
 ```bash
 mkdir -p uploads
 chmod 755 uploads
 ```
+
+4. ローカルサーバを起動します。
+
+```bash
+php -S 127.0.0.1:8000
+```
+
+5. ブラウザで開きます。
+
+```text
+http://127.0.0.1:8000/
+```
+
+## 使い方
+
+通常ページ:
+
+```text
+/
+```
+
+管理モード:
+
+```text
+/?admin=1
+```
+
+管理モードでは最初にパスワード入力を求められます。認証に成功すると、写真ごとの削除とアップロード済み写真の全削除ができます。
+
+## 設定
+
+`config.php` は管理パスワードなどの秘密情報を含むためGit管理外です。共有・デプロイ用のひな形は `config.example.php` を更新してください。
+
+主な設定:
+
+- `UPLOAD_DIR`: 画像保存先。絶対パス、またはプロジェクトルートからの相対パス
+- `MAX_IMAGE_SIZE`: 1枚あたりの最大アップロードサイズ
+- `MAX_UPLOAD_COUNT`: 一度にアップロードできる最大枚数
+- `ALLOWED_IMAGE_EXTENSIONS`: 許可する画像拡張子
+- `GALLERY_POLL_INTERVAL_SECONDS`: ギャラリーが新規画像を確認する間隔
+- `ADMIN_PASSWORD`: 管理モード用パスワード。空の場合、削除APIは無効
+- `UPLOAD_RETENTION_SECONDS`: 自動削除までの秒数。`0` なら無効
+
+## メタデータ
+
+アップロード画像は保存前に再エンコードし、EXIF/GPSなどの画像内メタデータを削除します。撮影日時を取得できた場合のみ、ギャラリーの並び替え用データとして `UPLOAD_DIR/.metadata` に保存します。
+
+サーバ環境でメタデータ削除を保証できない形式は保存されません。HEIC/HEIFを受け付けたい場合は、対応するImagick環境を用意してください。
+
+## デプロイメモ
+
+- `config.php` はGit管理外のため、デプロイ先で個別に作成してください。
+- `UPLOAD_DIR` はPHP実行ユーザが書き込める必要があります。
+- Web公開ディレクトリ外に `UPLOAD_DIR` を置いた場合も、画像は `api/image.php` 経由で表示されます。
