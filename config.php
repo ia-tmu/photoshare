@@ -8,8 +8,8 @@ define('APP_TIMEZONE', 'Asia/Tokyo');
 define('MAX_IMAGE_SIZE', 25 * 1024 * 1024);
 define('MAX_UPLOAD_COUNT', 20);
 define('ALLOWED_IMAGE_EXTENSIONS', 'jpg,jpeg,png,gif,webp,heic,heif');
-define('THUMBNAIL_MAX_WIDTH', 640);
-define('THUMBNAIL_MAX_HEIGHT', 640);
+define('THUMBNAIL_MAX_WIDTH', 512);
+define('THUMBNAIL_MAX_HEIGHT', 512);
 define('THUMBNAIL_JPEG_QUALITY', 72);
 
 // Gallery behavior.

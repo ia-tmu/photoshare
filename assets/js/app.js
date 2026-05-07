@@ -15,6 +15,10 @@ const gallerySection = document.querySelector("#gallery-section");
 
 const selectedPhotos = new Map();
 const previewUrls = new Map();
+let previewCloseTimer = null;
+let shouldResetPreviewAfterClose = false;
+
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const updateGalleryPeekVisibility = () => {
   galleryPeek.classList.toggle("is-hidden", window.scrollY > 24);
@@ -66,7 +70,74 @@ const clearSelectedPhotos = () => {
   renderPreviews();
 };
 
+const resetPreviewDialogContent = () => {
+  previewList.innerHTML = "";
+  previewPanel.hidden = true;
+  previewPanel.classList.remove("is-sending");
+  previewCount.textContent = `${formatCount(0)}選択中`;
+  sendButton.disabled = true;
+};
+
+const closePreviewDialog = ({ resetAfterClose = false } = {}) => {
+  if (!previewDialog.open) {
+    if (resetAfterClose) resetPreviewDialogContent();
+    return;
+  }
+
+  if (previewDialog.classList.contains("is-closing")) {
+    shouldResetPreviewAfterClose = shouldResetPreviewAfterClose || resetAfterClose;
+    return;
+  }
+
+  window.clearTimeout(previewCloseTimer);
+  shouldResetPreviewAfterClose = resetAfterClose;
+  previewDialog.classList.remove("is-open");
+  previewDialog.classList.add("is-closing");
+
+  const finishClose = () => {
+    previewDialog.classList.remove("is-closing");
+    previewDialog.close();
+  };
+
+  if (prefersReducedMotion.matches) {
+    finishClose();
+    return;
+  }
+
+  previewCloseTimer = window.setTimeout(finishClose, 180);
+};
+
+const openPreviewDialog = () => {
+  const isAlreadyOpen = previewDialog.open && !previewDialog.classList.contains("is-closing");
+
+  window.clearTimeout(previewCloseTimer);
+  shouldResetPreviewAfterClose = false;
+
+  if (isAlreadyOpen) {
+    previewDialog.classList.add("is-open");
+    return;
+  }
+
+  previewDialog.classList.remove("is-open", "is-closing");
+
+  if (!previewDialog.open) {
+    previewDialog.showModal();
+  }
+
+  window.requestAnimationFrame(() => {
+    previewDialog.classList.add("is-open");
+  });
+};
+
 const renderPreviews = () => {
+  const count = selectedPhotos.size;
+
+  if (count === 0) {
+    closePreviewDialog({ resetAfterClose: true });
+    return;
+  }
+
+  previewPanel.hidden = false;
   previewList.innerHTML = "";
 
   for (const [key, file] of selectedPhotos.entries()) {
@@ -98,21 +169,10 @@ const renderPreviews = () => {
     previewList.append(item);
   }
 
-  const count = selectedPhotos.size;
-  previewPanel.hidden = count === 0;
   previewCount.textContent = `${formatCount(count)}選択中`;
-  sendButton.disabled = count === 0;
+  sendButton.disabled = false;
 
-  if (count === 0) {
-    if (previewDialog.open) {
-      previewDialog.close();
-    }
-    return;
-  }
-
-  if (!previewDialog.open) {
-    previewDialog.showModal();
-  }
+  openPreviewDialog();
 };
 
 const addPhotos = (fileList) => {
@@ -231,6 +291,16 @@ sendButton.addEventListener("click", () => {
 
 previewDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
+});
+
+previewDialog.addEventListener("close", () => {
+  window.clearTimeout(previewCloseTimer);
+  previewDialog.classList.remove("is-open", "is-closing");
+
+  if (shouldResetPreviewAfterClose) {
+    resetPreviewDialogContent();
+    shouldResetPreviewAfterClose = false;
+  }
 });
 
 const scrollToGallery = () => {

@@ -345,11 +345,12 @@ a {
 }
 
 .gallery-peek {
+  --peek-size: clamp(76px, 18vw, 112px);
   position: absolute;
   left: 50%;
   bottom: 0;
   width: min(620px, calc(100% - 32px));
-  height: 46px;
+  height: calc(var(--peek-size) / 2);
   overflow: hidden;
   border: 0;
   padding: 0;
@@ -386,40 +387,35 @@ a {
 }
 
 .gallery-peek-item {
-  flex: 0 0 clamp(76px, 18vw, 112px);
+  flex: 0 0 var(--peek-size);
   display: block;
   aspect-ratio: 1;
   overflow: hidden;
   border: 2px solid #ffffff;
   border-radius: 8px 8px 0 0;
   background: var(--panel);
-  transform: translateY(var(--peek-y, 10px)) rotate(var(--peek-rotate, 0deg));
+  transform: rotate(var(--peek-rotate, 0deg));
   transform-origin: center bottom;
 }
 
 .gallery-peek-item:nth-child(1) {
   --peek-rotate: -7deg;
-  --peek-y: 15px;
 }
 
 .gallery-peek-item:nth-child(2) {
   --peek-rotate: 3deg;
-  --peek-y: 8px;
 }
 
 .gallery-peek-item:nth-child(3) {
   --peek-rotate: -2deg;
-  --peek-y: 13px;
 }
 
 .gallery-peek-item:nth-child(4) {
   --peek-rotate: 8deg;
-  --peek-y: 9px;
 }
 
 .gallery-peek-item:nth-child(5) {
   --peek-rotate: -5deg;
-  --peek-y: 16px;
 }
 
 .gallery-peek-item img {
@@ -437,11 +433,35 @@ a {
   border-radius: 8px;
   padding: 0;
   background: transparent;
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 .preview-dialog::backdrop {
-  background: rgba(17, 17, 17, 0.42);
+  background: rgba(17, 17, 17, 0);
   backdrop-filter: blur(6px);
+  transition: background 180ms ease;
+}
+
+.preview-dialog.is-open {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.preview-dialog.is-open::backdrop {
+  background: rgba(17, 17, 17, 0.42);
+}
+
+.preview-dialog.is-closing {
+  opacity: 0;
+  transform: scale(0.975);
+}
+
+.preview-dialog.is-closing::backdrop {
+  background: rgba(17, 17, 17, 0);
 }
 
 .preview-panel {
@@ -454,6 +474,11 @@ a {
   text-align: left;
   background: #ffffff;
   box-shadow: 0 18px 70px rgba(17, 17, 17, 0.22);
+  transform-origin: center;
+}
+
+.preview-dialog.is-open .preview-panel {
+  animation: modal-panel-zoom 220ms ease-out both;
 }
 
 .preview-panel[hidden] {
@@ -810,12 +835,36 @@ a {
   padding: 0;
   color: #ffffff;
   background: #111111;
+  opacity: 0;
   box-shadow: 0 20px 80px rgba(17, 17, 17, 0.34);
+  transform: scale(0.96);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 .photo-lightbox::backdrop {
-  background: rgba(17, 17, 17, 0.72);
+  background: rgba(17, 17, 17, 0);
   backdrop-filter: blur(8px);
+  transition: background 180ms ease;
+}
+
+.photo-lightbox.is-open {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.photo-lightbox.is-open::backdrop {
+  background: rgba(17, 17, 17, 0.72);
+}
+
+.photo-lightbox.is-closing {
+  opacity: 0;
+  transform: scale(0.975);
+}
+
+.photo-lightbox.is-closing::backdrop {
+  background: rgba(17, 17, 17, 0);
 }
 
 .photo-lightbox-close {
@@ -851,6 +900,12 @@ a {
   max-height: calc(100dvh - 108px);
   border-radius: 6px;
   object-fit: contain;
+  transform-origin: center;
+  transition: transform 180ms ease;
+}
+
+.photo-lightbox.is-open .photo-lightbox-figure img {
+  animation: lightbox-image-zoom 220ms ease-out both;
 }
 
 .photo-lightbox-figure figcaption {
@@ -894,11 +949,18 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .photo-zoom-button,
   .photo-frame,
-  .photo-frame img {
+  .photo-frame img,
+  .preview-dialog,
+  .preview-dialog::backdrop,
+  .photo-lightbox,
+  .photo-lightbox::backdrop,
+  .photo-lightbox-figure img {
     transition: none;
   }
 
-  .photo-frame.is-loaded {
+  .photo-frame.is-loaded,
+  .preview-dialog.is-open .preview-panel,
+  .photo-lightbox.is-open .photo-lightbox-figure img {
     animation: none;
   }
 }
@@ -946,6 +1008,26 @@ a {
 
   70% {
     transform: scale(1.012);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes lightbox-image-zoom {
+  0% {
+    transform: scale(0.94);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes modal-panel-zoom {
+  0% {
+    transform: scale(0.94);
   }
 
   100% {

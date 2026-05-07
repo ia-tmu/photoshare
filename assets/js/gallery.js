@@ -68,18 +68,42 @@ const createPhotoLightbox = () => {
 
 const lightbox = createPhotoLightbox();
 let lastFocusedElement = null;
+let lightboxCloseTimer = null;
+
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const closePhotoLightbox = () => {
   if (!lightbox.dialog.open) return;
-  lightbox.dialog.close();
+  if (lightbox.dialog.classList.contains("is-closing")) return;
+
+  window.clearTimeout(lightboxCloseTimer);
+  lightbox.dialog.classList.remove("is-open");
+  lightbox.dialog.classList.add("is-closing");
+
+  const finishClose = () => {
+    lightbox.dialog.classList.remove("is-closing");
+    lightbox.dialog.close();
+  };
+
+  if (prefersReducedMotion.matches) {
+    finishClose();
+    return;
+  }
+
+  lightboxCloseTimer = window.setTimeout(finishClose, 180);
 };
 
 const openPhotoLightbox = (photo) => {
   lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  window.clearTimeout(lightboxCloseTimer);
+  lightbox.dialog.classList.remove("is-open", "is-closing");
   lightbox.image.src = photo.originalUrl || photo.url;
   lightbox.image.alt = photo.name;
   lightbox.caption.textContent = dateFormatter.format(new Date(photo.uploadedAt));
   lightbox.dialog.showModal();
+  window.requestAnimationFrame(() => {
+    lightbox.dialog.classList.add("is-open");
+  });
   lightbox.closeButton.focus();
 };
 
@@ -344,7 +368,14 @@ lightbox.dialog.addEventListener("click", (event) => {
   }
 });
 
+lightbox.dialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closePhotoLightbox();
+});
+
 lightbox.dialog.addEventListener("close", () => {
+  window.clearTimeout(lightboxCloseTimer);
+  lightbox.dialog.classList.remove("is-open", "is-closing");
   lightbox.image.removeAttribute("src");
   lightbox.image.alt = "";
   lightbox.caption.textContent = "";
