@@ -1,4 +1,5 @@
 api/config.local.php
+/config.php
 uploads/*
 !uploads/.gitkeep
 !uploads/.htaccess

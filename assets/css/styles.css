@@ -561,7 +561,8 @@ a {
 
 .text-button,
 .secondary-button,
-.primary-button {
+.primary-button,
+.danger-button {
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -594,21 +595,30 @@ a {
   background: var(--foreground);
 }
 
+.danger-button {
+  border-color: var(--danger);
+  color: #ffffff;
+  background: var(--danger);
+}
+
 .secondary-button:hover,
 .text-button:hover {
   color: var(--foreground);
 }
 
 .primary-button:hover,
-.secondary-button:hover {
+.secondary-button:hover,
+.danger-button:hover {
   transform: translateY(-1px);
 }
 
 .text-button:focus-visible,
 .secondary-button:focus-visible,
 .primary-button:focus-visible,
+.danger-button:focus-visible,
 .remove-preview:focus-visible,
 .photo-zoom-button:focus-visible,
+.photo-delete-button:focus-visible,
 .photo-lightbox-close:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -617,6 +627,8 @@ a {
 .text-button:disabled,
 .secondary-button:disabled,
 .primary-button:disabled,
+.danger-button:disabled,
+.photo-delete-button:disabled,
 .remove-preview:disabled {
   cursor: wait;
   opacity: 0.56;
@@ -689,6 +701,31 @@ a {
   font-size: 0.93rem;
 }
 
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 0;
+  border: 1px solid rgba(159, 29, 29, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--foreground);
+  background: #fff7f7;
+}
+
+.admin-toolbar strong {
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+}
+
+.admin-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -696,6 +733,7 @@ a {
 }
 
 .photo-item {
+  position: relative;
   min-width: 0;
   margin: 0;
 }
@@ -796,6 +834,31 @@ a {
 .photo-frame.is-loaded .photo-loader,
 .photo-frame.is-error .photo-loader {
   display: none;
+}
+
+.photo-delete-button {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  min-height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #ffffff;
+  background: rgba(159, 29, 29, 0.88);
+  box-shadow: 0 6px 20px rgba(17, 17, 17, 0.18);
+  cursor: pointer;
+  font-size: 0.78rem;
+  line-height: 1;
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.photo-delete-button:hover {
+  background: var(--danger);
+  transform: translateY(-1px);
 }
 
 .photo-item figcaption {
@@ -920,6 +983,16 @@ a {
   .gallery-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .admin-status {
+    flex-basis: 100%;
+    order: 3;
   }
 
   .sort-control {

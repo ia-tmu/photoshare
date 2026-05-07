@@ -3,6 +3,7 @@ const sortSelect = document.querySelector("#sort-select");
 const statusEl = document.querySelector("#gallery-status");
 const sentinel = document.querySelector("#gallery-sentinel");
 const galleryPeek = document.querySelector("#gallery-peek");
+const galleryShell = grid.closest(".gallery-shell");
 
 const PAGE_SIZE = 48;
 const PEEK_SIZE = 5;
@@ -13,11 +14,16 @@ let total = 0;
 let isLoading = false;
 let isPolling = false;
 let hasMore = true;
+let isGalleryActive = false;
 let currentSort = sortSelect.value;
 let pollTimer = null;
 let pollIntervalMs = DEFAULT_POLL_INTERVAL_MS;
 
 const knownPhotoIds = new Set();
+const isAdminMode = new URLSearchParams(window.location.search).has("admin");
+let isAdminAuthenticated = false;
+let adminPassword = "";
+let adminStatusEl = null;
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
   year: "numeric",
@@ -115,6 +121,129 @@ const openPhotoLightbox = (photo) => {
 
 const setStatus = (message) => {
   statusEl.textContent = message;
+};
+
+const setAdminStatus = (message) => {
+  if (adminStatusEl) {
+    adminStatusEl.textContent = message;
+  }
+};
+
+const returnToNormalPage = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("admin");
+  window.location.replace(url.toString());
+};
+
+const adminRequest = async (payload) => {
+  if (!adminPassword) {
+    throw new Error("管理パスワードが入力されていません。");
+  }
+
+  const response = await fetch("api/admin.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...payload,
+      password: adminPassword,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || !result.ok) {
+    if (response.status === 403) adminPassword = "";
+    throw new Error(result.error || "管理操作に失敗しました。");
+  }
+
+  return result;
+};
+
+const authenticateAdminMode = async () => {
+  if (!isAdminMode) return true;
+
+  const password = window.prompt("管理パスワードを入力してください。");
+  if (!password) {
+    window.alert("管理パスワードが入力されていません。通常ページに戻ります。");
+    returnToNormalPage();
+    return false;
+  }
+
+  adminPassword = password;
+
+  try {
+    await adminRequest({ action: "verify" });
+    isAdminAuthenticated = true;
+    return true;
+  } catch (error) {
+    adminPassword = "";
+    window.alert(`${error.message}\n通常ページに戻ります。`);
+    returnToNormalPage();
+    return false;
+  }
+};
+
+const createAdminToolbar = () => {
+  if (!isAdminMode || !isAdminAuthenticated || !galleryShell) return;
+
+  const toolbar = document.createElement("section");
+  toolbar.className = "admin-toolbar";
+  toolbar.setAttribute("aria-label", "管理モード");
+
+  const label = document.createElement("strong");
+  label.textContent = "管理モード";
+
+  adminStatusEl = document.createElement("span");
+  adminStatusEl.className = "admin-status";
+  adminStatusEl.textContent = "個別削除と全削除ができます。";
+
+  const deleteAllButton = document.createElement("button");
+  deleteAllButton.className = "danger-button";
+  deleteAllButton.type = "button";
+  deleteAllButton.textContent = "全て削除";
+  deleteAllButton.addEventListener("click", async () => {
+    if (total === 0) {
+      setAdminStatus("削除する写真はありません。");
+      return;
+    }
+    if (!window.confirm("アップロードされた全ての写真を削除します。よろしいですか？")) return;
+
+    deleteAllButton.disabled = true;
+    setAdminStatus("全て削除しています...");
+
+    try {
+      const result = await adminRequest({ action: "delete_all" });
+      knownPhotoIds.clear();
+      grid.innerHTML = "";
+      if (galleryPeek) {
+        galleryPeek.hidden = true;
+      }
+      offset = 0;
+      total = 0;
+      hasMore = false;
+      sentinel.classList.remove("is-loading");
+      updateStatus(`${result.deleted || 0}枚削除しました。`);
+      setAdminStatus("全て削除しました。");
+    } catch (error) {
+      setAdminStatus(error.message);
+    } finally {
+      deleteAllButton.disabled = false;
+    }
+  });
+
+  const exitButton = document.createElement("button");
+  exitButton.className = "secondary-button";
+  exitButton.type = "button";
+  exitButton.textContent = "終了";
+  exitButton.addEventListener("click", () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("admin");
+    window.location.href = url.toString();
+  });
+
+  toolbar.append(label, adminStatusEl, deleteAllButton, exitButton);
+  galleryShell.insertBefore(toolbar, statusEl);
 };
 
 const updateStatus = (prefix = "") => {
@@ -229,7 +358,40 @@ const createPhotoItem = (photo, { isNew = false } = {}) => {
   const caption = document.createElement("figcaption");
   caption.textContent = formatPhotoDate(photo);
 
-  item.append(zoomButton, caption);
+  item.append(zoomButton);
+
+  if (isAdminMode && isAdminAuthenticated) {
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "photo-delete-button";
+    deleteButton.type = "button";
+    deleteButton.setAttribute("aria-label", `${photo.name}を削除`);
+    deleteButton.textContent = "削除";
+    deleteButton.addEventListener("click", async () => {
+      if (!window.confirm("この写真を削除します。よろしいですか？")) return;
+
+      deleteButton.disabled = true;
+      setAdminStatus("削除しています...");
+
+      try {
+        await adminRequest({ action: "delete", name: photo.name });
+        knownPhotoIds.delete(photo.id);
+        item.remove();
+        total = Math.max(0, total - 1);
+        offset = Math.max(0, offset - 1);
+        if (total === 0 && galleryPeek) {
+          galleryPeek.hidden = true;
+        }
+        updateStatus("1枚削除しました。");
+        setAdminStatus("削除しました。");
+      } catch (error) {
+        setAdminStatus(error.message);
+        deleteButton.disabled = false;
+      }
+    });
+    item.append(deleteButton);
+  }
+
+  item.append(caption);
   return item;
 };
 
@@ -284,7 +446,7 @@ const insertPhoto = (photo, options = {}) => {
 };
 
 const loadNextPage = async () => {
-  if (isLoading || !hasMore) return;
+  if (!isGalleryActive || isLoading || !hasMore) return;
 
   isLoading = true;
   sentinel.classList.add("is-loading");
@@ -418,5 +580,13 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-resetGallery();
-schedulePolling();
+const initializeGallery = async () => {
+  if (!(await authenticateAdminMode())) return;
+
+  isGalleryActive = true;
+  createAdminToolbar();
+  resetGallery();
+  schedulePolling();
+};
+
+initializeGallery();

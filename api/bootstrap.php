@@ -447,6 +447,45 @@ function delete_photo_metadata($originalName)
     }
 }
 
+function delete_photo_file($originalName)
+{
+    if (!is_safe_stored_name($originalName)) {
+        return false;
+    }
+
+    $sourcePath = upload_dir() . '/' . $originalName;
+    $deleted = false;
+
+    if (is_file($sourcePath)) {
+        $deleted = @unlink($sourcePath);
+    }
+
+    $thumbnailPath = thumbnail_path($originalName);
+    if (is_file($thumbnailPath)) {
+        @unlink($thumbnailPath);
+    }
+
+    delete_photo_metadata($originalName);
+
+    return $deleted;
+}
+
+function admin_password()
+{
+    return (string) config_value('ADMIN_PASSWORD', '');
+}
+
+function admin_password_is_configured()
+{
+    return admin_password() !== '';
+}
+
+function verify_admin_password($password)
+{
+    $configuredPassword = admin_password();
+    return $configuredPassword !== '' && hash_equals($configuredPassword, (string) $password);
+}
+
 function create_thumbnail($sourcePath, $originalName)
 {
     if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg') || !ensure_thumbnail_dir()) {

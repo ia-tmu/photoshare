@@ -1,5 +1,7 @@
 <?php
 
+// Copy this file to config.php and adjust values for your environment.
+
 // Absolute path, or a path relative to this project root.
 define('UPLOAD_DIR', __DIR__ . '/uploads');
 define('APP_TIMEZONE', 'Asia/Tokyo');
@@ -17,6 +19,9 @@ define('GALLERY_DEFAULT_SORT', 'newest');
 define('GALLERY_DEFAULT_LIMIT', 48);
 define('GALLERY_MAX_LIMIT', 120);
 define('GALLERY_POLL_INTERVAL_SECONDS', 10);
+
+// Admin mode. Set a non-empty password to enable deletion via ?admin=1.
+define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: '');
 
 // Cleanup behavior. Set to 0 to keep files indefinitely.
 define('UPLOAD_RETENTION_SECONDS', 0);

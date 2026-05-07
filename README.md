@@ -26,7 +26,11 @@
 
 ## 設定
 
-調整が必要な値はプロジェクト直下の `config.php` に集約しています。
+調整が必要な値はプロジェクト直下の `config.php` に集約しています。`config.php` は管理パスワードなどの秘密情報を含むためGit管理外です。初回セットアップ時はサンプルをコピーして作成してください。
+
+```bash
+cp config.example.php config.php
+```
 
 ```php
 define('UPLOAD_DIR', __DIR__ . '/uploads');
@@ -41,6 +45,7 @@ define('GALLERY_DEFAULT_SORT', 'newest');
 define('GALLERY_DEFAULT_LIMIT', 48);
 define('GALLERY_MAX_LIMIT', 120);
 define('GALLERY_POLL_INTERVAL_SECONDS', 10);
+define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: '');
 define('UPLOAD_RETENTION_SECONDS', 0);
 define('UPLOAD_SUCCESS_MESSAGE', '写真を保存しました。');
 ```
@@ -52,6 +57,8 @@ define('UPLOAD_SUCCESS_MESSAGE', '写真を保存しました。');
 アップロード画像は保存前に再エンコードし、EXIF/GPSなどの画像内メタデータを削除します。撮影日時を取得できた場合のみ、ギャラリーの並び替え用データとして `UPLOAD_DIR/.metadata` に保存します。HEIC/HEIFなど、サーバ環境でメタデータ削除を保証できない形式は保存されません。
 
 `GALLERY_POLL_INTERVAL_SECONDS` は `gallery.html` が新規画像を確認する間隔です。新しい画像が見つかると、既存グリッドへふわっと追加表示されます。
+
+`ADMIN_PASSWORD` に空ではない値を設定すると、`/gallery.html?admin=1` または `/?admin=1` で管理モードを使えます。管理モードでは写真ごとの削除と、アップロード済み写真の全削除ができます。
 
 ## ローカル起動
 
