@@ -20,7 +20,7 @@
       <section class="upload-composer" aria-label="写真共有">
         <header class="upload-header">
           <img class="site-logo" src="assets/images/logo.svg" alt="" />
-          <p>インダスな思い出画像をイベント期間中にみんなでシェアしよう。</p>
+          <p>思い出画像をみんなでシェアしよう。</p>
         </header>
 
         <div class="upload-stage">
@@ -40,8 +40,10 @@
             </span>
           </button>
 
-          <input id="photo-input" name="photos[]" type="file" accept="image/*" multiple />
+          <input id="photo-input" name="photos[]" type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif" multiple />
         </div>
+        <p id="upload-status" class="status" role="status" aria-live="polite"></p>
       </section>
       <button id="gallery-scroll-button" class="scroll-cue" type="button" aria-label="写真ギャラリーへスクロール">
         <span class="scroll-cue-photos">
@@ -54,7 +56,6 @@
           <path d="m6 13 6 6 6-6" />
         </svg>
       </button>
-      <button id="gallery-peek" class="gallery-peek" type="button" aria-label="写真ギャラリーへスクロール" hidden></button>
     </section>
 
     <section id="gallery-section" class="gallery-shell">
@@ -77,7 +78,7 @@
         </label>
       </header>
 
-      <p id="gallery-status" class="gallery-status" role="status" aria-live="polite">読み込み中です。</p>
+      <p id="gallery-status" class="gallery-status" role="status" aria-live="polite"></p>
       <section id="photo-grid" class="photo-grid" aria-label="共有写真一覧"></section>
       <div id="gallery-sentinel" class="gallery-sentinel" aria-hidden="true">
         <span></span>

@@ -2,11 +2,9 @@ const grid = document.querySelector("#photo-grid");
 const sortSelect = document.querySelector("#sort-select");
 const statusEl = document.querySelector("#gallery-status");
 const sentinel = document.querySelector("#gallery-sentinel");
-const galleryPeek = document.querySelector("#gallery-peek");
 const galleryShell = grid.closest(".gallery-shell");
 
 const PAGE_SIZE = 48;
-const PEEK_SIZE = 5;
 const DEFAULT_POLL_INTERVAL_MS = 10000;
 
 let offset = 0;
@@ -216,9 +214,6 @@ const createAdminToolbar = () => {
       const result = await adminRequest({ action: "delete_all" });
       knownPhotoIds.clear();
       grid.innerHTML = "";
-      if (galleryPeek) {
-        galleryPeek.hidden = true;
-      }
       offset = 0;
       total = 0;
       hasMore = false;
@@ -248,42 +243,11 @@ const createAdminToolbar = () => {
 
 const updateStatus = (prefix = "") => {
   if (total === 0) {
-    setStatus("まだ写真はありません。");
+    setStatus("");
     return;
   }
 
-  const shown = knownPhotoIds.size;
-  setStatus(`${prefix}${total}枚中 ${Math.min(shown, total)}枚を表示しています。`);
-};
-
-const updateGalleryPeek = (photos) => {
-  if (!galleryPeek || photos.length === 0) return;
-
-  const latestPhotos = [...photos]
-    .sort((left, right) => Number(right.timestamp || 0) - Number(left.timestamp || 0))
-    .slice(0, PEEK_SIZE);
-
-  if (latestPhotos.length === 0) return;
-
-  const list = document.createElement("span");
-  list.className = "gallery-peek-list";
-
-  for (const photo of latestPhotos) {
-    const item = document.createElement("span");
-    item.className = "gallery-peek-item";
-
-    const image = document.createElement("img");
-    image.src = photo.thumbnailUrl || photo.url;
-    image.alt = "";
-    image.loading = "lazy";
-    image.decoding = "async";
-
-    item.append(image);
-    list.append(item);
-  }
-
-  galleryPeek.replaceChildren(list);
-  galleryPeek.hidden = false;
+  setStatus(prefix);
 };
 
 const comparePhotos = (left, right, sort = currentSort) => {
@@ -317,6 +281,17 @@ const photoFromItem = (item) => ({
   capturedTimestamp: Number(item.dataset.capturedTimestamp || 0),
 });
 
+const photoRotation = (photo) => {
+  const source = photo.id || photo.name || "";
+  let hash = 0;
+
+  for (const character of source) {
+    hash = (hash * 31 + character.charCodeAt(0)) % 1009;
+  }
+
+  return `${((hash % 13) - 6) * 0.55}deg`;
+};
+
 const createPhotoItem = (photo, { isNew = false } = {}) => {
   const item = document.createElement("figure");
   item.className = `photo-item${isNew ? " is-new" : ""}`;
@@ -324,6 +299,7 @@ const createPhotoItem = (photo, { isNew = false } = {}) => {
   item.dataset.name = photo.name;
   item.dataset.timestamp = String(photo.timestamp || 0);
   item.dataset.capturedTimestamp = String(photo.capturedTimestamp || 0);
+  item.style.setProperty("--photo-rotate", photoRotation(photo));
 
   const frame = document.createElement("div");
   frame.className = "photo-frame";
@@ -378,9 +354,6 @@ const createPhotoItem = (photo, { isNew = false } = {}) => {
         item.remove();
         total = Math.max(0, total - 1);
         offset = Math.max(0, offset - 1);
-        if (total === 0 && galleryPeek) {
-          galleryPeek.hidden = true;
-        }
         updateStatus("1枚削除しました。");
         setAdminStatus("削除しました。");
       } catch (error) {
@@ -457,8 +430,6 @@ const loadNextPage = async () => {
     hasMore = Boolean(result.hasMore);
     offset += result.photos.length;
 
-    updateGalleryPeek(result.photos);
-
     for (const photo of result.photos) {
       appendPhoto(photo);
     }
@@ -484,7 +455,6 @@ const pollForNewPhotos = async () => {
       pageOffset: 0,
       limit: PAGE_SIZE,
     });
-    updateGalleryPeek(result.photos);
     const newPhotos = result.photos.filter((photo) => !knownPhotoIds.has(photo.id));
 
     if (newPhotos.length > 0) {
@@ -527,7 +497,7 @@ const resetGallery = () => {
   hasMore = true;
   knownPhotoIds.clear();
   grid.innerHTML = "";
-  setStatus("読み込み中です。");
+  setStatus("");
   loadNextPage();
 };
 

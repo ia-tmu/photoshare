@@ -9,19 +9,22 @@ const previewCount = document.querySelector("#preview-count");
 const sendButton = document.querySelector("#send-button");
 const clearButton = document.querySelector("#clear-button");
 const selectMoreButton = document.querySelector("#select-more-button");
+const uploadStatus = document.querySelector("#upload-status");
 const galleryScrollButton = document.querySelector("#gallery-scroll-button");
-const galleryPeek = document.querySelector("#gallery-peek");
 const gallerySection = document.querySelector("#gallery-section");
+const galleryHeader = document.querySelector(".gallery-header");
 
 const selectedPhotos = new Map();
 const previewUrls = new Map();
 let previewCloseTimer = null;
 let shouldResetPreviewAfterClose = false;
+let uploadStatusTypeTimer = null;
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-const updateGalleryPeekVisibility = () => {
-  galleryPeek.classList.toggle("is-hidden", window.scrollY > 24);
+const updateGalleryHeaderVisibility = () => {
+  const galleryTop = gallerySection.getBoundingClientRect().top;
+  galleryHeader.classList.toggle("is-fixed", galleryTop <= galleryHeader.offsetHeight);
 };
 
 const setProgress = (value) => {
@@ -51,6 +54,42 @@ const setProgressBarActive = (isActive) => {
 const formatCount = (count) => `${count}枚`;
 
 const photoKey = (file) => `${file.name}-${file.size}-${file.lastModified}`;
+const supportedPhotoExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"]);
+const supportedPhotoMimeTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"]);
+
+const isSupportedPhotoFile = (file) => {
+  if (supportedPhotoMimeTypes.has(file.type)) {
+    return true;
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  return extension ? supportedPhotoExtensions.has(extension) : false;
+};
+
+const setUploadStatus = (message = "", type = "") => {
+  window.clearInterval(uploadStatusTypeTimer);
+  uploadStatusTypeTimer = null;
+
+  uploadStatus.classList.toggle("is-error", type === "error");
+  uploadStatus.classList.toggle("is-success", type === "success");
+
+  if (type !== "success" || message === "") {
+    uploadStatus.textContent = message;
+    return;
+  }
+
+  let index = 0;
+  uploadStatus.textContent = "";
+  uploadStatusTypeTimer = window.setInterval(() => {
+    index += 1;
+    uploadStatus.textContent = message.slice(0, index);
+
+    if (index >= message.length) {
+      window.clearInterval(uploadStatusTypeTimer);
+      uploadStatusTypeTimer = null;
+    }
+  }, 100);
+};
 
 const revokePreviewUrl = (key) => {
   const previewUrl = previewUrls.get(key);
@@ -176,12 +215,14 @@ const renderPreviews = () => {
 };
 
 const addPhotos = (fileList) => {
-  const files = Array.from(fileList).filter((file) => file.type.startsWith("image/"));
+  const files = Array.from(fileList).filter(isSupportedPhotoFile);
   if (files.length === 0) {
+    setUploadStatus("JPEG、PNG、GIF、WebP、HEICの写真を選択してください。", "error");
     return;
   }
 
   uploadButton.classList.remove("is-success", "is-error");
+  setUploadStatus();
   setProgress(0);
   setProgressBarActive(false);
 
@@ -247,6 +288,7 @@ const sendSelectedPhotos = async () => {
     setProgress(100);
     uploadButton.classList.remove("is-uploading");
     uploadButton.classList.add("is-success");
+    setUploadStatus("写真が送信されました", "success");
     clearSelectedPhotos();
 
     window.setTimeout(() => {
@@ -254,10 +296,11 @@ const sendSelectedPhotos = async () => {
       setProgress(0);
       setProgressBarActive(false);
     }, 1800);
-  } catch (_error) {
+  } catch (error) {
     uploadButton.classList.remove("is-uploading");
     uploadButton.classList.add("is-error");
     sendButton.disabled = false;
+    setUploadStatus(error.message, "error");
 
     window.setTimeout(() => {
       uploadButton.classList.remove("is-error");
@@ -314,12 +357,9 @@ galleryScrollButton.addEventListener("click", () => {
   scrollToGallery();
 });
 
-galleryPeek.addEventListener("click", () => {
-  scrollToGallery();
-});
-
-window.addEventListener("scroll", updateGalleryPeekVisibility, { passive: true });
-updateGalleryPeekVisibility();
+window.addEventListener("scroll", updateGalleryHeaderVisibility, { passive: true });
+window.addEventListener("resize", updateGalleryHeaderVisibility);
+updateGalleryHeaderVisibility();
 
 photoInput.addEventListener("change", (event) => {
   addPhotos(event.target.files);

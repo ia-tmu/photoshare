@@ -27,4 +27,4 @@ define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: '');
 define('UPLOAD_RETENTION_SECONDS', 0);
 
 // User-facing messages.
-define('UPLOAD_SUCCESS_MESSAGE', '写真を保存しました。');
+define('UPLOAD_SUCCESS_MESSAGE', '写真が送信されました');

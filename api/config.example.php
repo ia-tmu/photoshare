@@ -17,4 +17,4 @@ define('GALLERY_MAX_LIMIT', 120);
 define('GALLERY_POLL_INTERVAL_SECONDS', 10);
 define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: '');
 define('UPLOAD_RETENTION_SECONDS', 0);
-define('UPLOAD_SUCCESS_MESSAGE', '写真を保存しました。');
+define('UPLOAD_SUCCESS_MESSAGE', '写真が送信されました');
